@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Catatan Keuangan</title>
+
+<!-- PWA Meta -->
+<meta name="application-name" content="Catatan Keuangan">
+<meta name="description" content="Catatan keuangan, hutang & piutang usaha cetak">
+<meta name="theme-color" content="#0e0f0e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Keuangan">
+
+<!-- PWA Icons (inline SVG as data URI) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f0e'/><text y='68' x='50' text-anchor='middle' font-size='58' font-family='serif'>💰</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f0e'/><text y='68' x='50' text-anchor='middle' font-size='58' font-family='serif'>💰</text></svg>">
+
+<!-- PWA Manifest (inline) -->
+<link rel="manifest" href="data:application/json,{
+  %22name%22:%22Catatan%20Keuangan%22,
+  %22short_name%22:%22Keuangan%22,
+  %22description%22:%22Catatan%20keuangan,%20hutang%20%26%20piutang%22,
+  %22start_url%22:%22.%22,
+  %22display%22:%22standalone%22,
+  %22background_color%22:%22%230e0f0e%22,
+  %22theme_color%22:%22%230e0f0e%22,
+  %22orientation%22:%22portrait%22,
+  %22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f0e'/><text y='68' x='50' text-anchor='middle' font-size='58'>💰</text></svg>%22,%22sizes%22:%22any%22,%22type%22:%22image/svg+xml%22}]
+}">
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f0e;
+    --surface: #161714;
+    --surface2: #1e1f1c;
+    --border: #2a2b27;
+    --accent: #c8f060;
+    --accent2: #f0c860;
+    --text: #e8e9e3;
+    --muted: #6b6c67;
+    --income: #a8e890;
+    --expense: #ff8080;
+    --piutang: #7ec8f8;
+    --hutang: #f8a07e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 24px 16px 80px;
+  }
+
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+
+  .container { max-width: 720px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+  .header-label { font-size: 10px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  h1 { font-family: 'DM Serif Display', serif; font-size: clamp(1.8rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); font-style: italic; }
+  .date-now { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  .backup-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 14px; padding: 11px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .backup-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+  .btn-backup {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 13px; border-radius: 7px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: all 0.18s;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+  }
+  .btn-backup:hover { color: var(--text); border-color: #3a3b37; }
+  .btn-backup.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-backup.import-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-backup.danger-btn:hover { border-color: var(--expense); color: var(--expense); }
+  .backup-hint { font-size: 10px; color: var(--muted); margin-left: auto; font-style: italic; }
+  @media (max-width: 500px) { .backup-hint { display: none; } }
+
+  /* Tab Nav */
+  .tab-nav {
+    display: flex; gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+    margin-bottom: 24px;
+  }
+
+  .tab-btn {
+    flex: 1; padding: 10px 8px;
+    border: none; border-radius: 8px;
+    background: transparent; color: var(--muted);
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .tab-btn.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .tab-btn.active.tab-transaksi { color: var(--accent); }
+  .tab-btn.active.tab-hp { color: var(--accent2); }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Summary Cards */
+  .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .summary-hp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    position: relative; overflow: hidden;
+  }
+
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .card.balance::before { background: var(--accent); }
+  .card.c-masuk::before { background: var(--income); }
+  .card.c-keluar::before { background: var(--expense); }
+  .card.c-piutang::before { background: var(--piutang); }
+  .card.c-hutang::before { background: var(--hutang); }
+
+  .card-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .card-amount { font-family: 'Syne', sans-serif; font-size: clamp(0.9rem, 2.5vw, 1.4rem); font-weight: 700; word-break: break-all; }
+  .card.balance .card-amount { color: var(--accent); }
+  .card.c-masuk .card-amount { color: var(--income); }
+  .card.c-keluar .card-amount { color: var(--expense); }
+  .card.c-piutang .card-amount { color: var(--piutang); }
+  .card.c-hutang .card-amount { color: var(--hutang); }
+  .card-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* Forms */
+  .form-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 22px; margin-bottom: 24px;
+  }
+
+  .form-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .form-title.accent { color: var(--accent); }
+  .form-title.accent2 { color: var(--accent2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  .field input, .field select, .field textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 13px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,240,96,0.07);
+  }
+
+  .field select option { background: var(--surface2); }
+  .field textarea { resize: vertical; min-height: 54px; }
+
+  .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .type-btn {
+    padding: 9px 8px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+
+  .type-btn.active-masuk { border-color: var(--income); color: var(--income); background: rgba(168,232,144,0.08); }
+  .type-btn.active-keluar { border-color: var(--expense); color: var(--expense); background: rgba(255,128,128,0.08); }
+  .type-btn.active-piutang { border-color: var(--piutang); color: var(--piutang); background: rgba(126,200,248,0.08); }
+  .type-btn.active-hutang { border-color: var(--hutang); color: var(--hutang); background: rgba(248,160,126,0.08); }
+
+  .btn-submit {
+    width: 100%; padding: 13px; border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    margin-top: 14px; transition: all 0.2s;
+  }
+
+  .btn-submit.accent-btn { background: var(--accent); color: #0e0f0e; }
+  .btn-submit.accent-btn:hover { background: #d4f870; transform: translateY(-1px); }
+  .btn-submit.accent2-btn { background: var(--accent2); color: #0e0f0e; }
+  .btn-submit.accent2-btn:hover { background: #f5d070; transform: translateY(-1px); }
+
+  /* List */
+  .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .list-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .trans-count { font-size: 10px; color: var(--muted); background: var(--surface2); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+  .filter-bar { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
+
+  .filter-btn {
+    padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(200,240,96,0.07); }
+  .filter-btn.active2 { border-color: var(--accent2); color: var(--accent2); background: rgba(240,200,96,0.07); }
+
+  .trans-list { display: flex; flex-direction: column; gap: 7px; }
+
+  .trans-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 15px;
+    display: flex; align-items: center; gap: 12px;
+    animation: fadeIn 0.25s ease; transition: border-color 0.2s;
+  }
+
+  .trans-item:hover { border-color: #3a3b37; }
+
+  .trans-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+
+  .trans-icon.masuk { background: rgba(168,232,144,0.12); }
+  .trans-icon.keluar { background: rgba(255,128,128,0.12); }
+
+  .trans-info { flex: 1; min-width: 0; }
+  .trans-keterangan { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  .trans-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .trans-date { font-size: 10px; color: var(--muted); }
+  .trans-cat { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--surface2); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); }
+
+  .trans-amount { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .trans-amount.masuk { color: var(--income); }
+  .trans-amount.keluar { color: var(--expense); }
+
+  .btn-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px; border-radius: 4px; transition: color 0.2s; flex-shrink: 0; }
+  .btn-delete:hover { color: var(--expense); }
+
+  /* HP Items */
+  .hp-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+    margin-bottom: 8px; animation: fadeIn 0.25s ease; transition: border-color 0.2s;
+  }
+
+  .hp-item:hover { border-color: #3a3b37; }
+  .hp-item.lunas { opacity: 0.5; }
+
+  .hp-main {
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  }
+
+  .hp-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+
+  .hp-icon.piutang { background: rgba(126,200,248,0.12); }
+  .hp-icon.hutang { background: rgba(248,160,126,0.12); }
+
+  .hp-info { flex: 1; min-width: 0; }
+  .hp-nama { font-size: 13px; font-weight: 500; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hp-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+  .hp-badge {
+    font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 4px; border: 1px solid;
+  }
+
+  .hp-badge.piutang { color: var(--piutang); border-color: rgba(126,200,248,0.3); background: rgba(126,200,248,0.07); }
+  .hp-badge.hutang { color: var(--hutang); border-color: rgba(248,160,126,0.3); background: rgba(248,160,126,0.07); }
+  .hp-badge.belum { color: var(--accent2); border-color: rgba(240,200,96,0.3); background: rgba(240,200,96,0.07); }
+  .hp-badge.lunas { color: var(--income); border-color: rgba(168,232,144,0.3); background: rgba(168,232,144,0.07); }
+
+  .hp-tanggal { font-size: 10px; color: var(--muted); }
+  .hp-jatuh { font-size: 10px; color: var(--accent2); }
+  .hp-jatuh.lewat { color: var(--expense); }
+
+  .hp-right { text-align: right; flex-shrink: 0; }
+  .hp-nominal { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+  .hp-nominal.piutang { color: var(--piutang); }
+  .hp-nominal.hutang { color: var(--hutang); }
+  .hp-sisa { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .hp-chevron { font-size: 10px; color: var(--muted); margin-left: 6px; transition: transform 0.2s; flex-shrink: 0; }
+  .hp-chevron.open { transform: rotate(180deg); }
+
+  .hp-detail { display: none; border-top: 1px solid var(--border); padding: 14px 16px; background: rgba(255,255,255,0.01); }
+  .hp-detail.open { display: block; }
+
+  .hp-keterangan { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.6; }
+
+  .hp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn-action {
+    padding: 7px 14px; border-radius: 8px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-action.lunas-btn { border: 1px solid rgba(168,232,144,0.3); background: rgba(168,232,144,0.07); color: var(--income); }
+  .btn-action.lunas-btn:hover { background: rgba(168,232,144,0.14); }
+  .btn-action.cicil-btn { border: 1px solid rgba(200,240,96,0.3); background: rgba(200,240,96,0.07); color: var(--accent); }
+  .btn-action.cicil-btn:hover { background: rgba(200,240,96,0.13); }
+  .btn-action.hapus-btn { border: 1px solid var(--border); background: transparent; color: var(--muted); }
+  .btn-action.hapus-btn:hover { border-color: var(--expense); color: var(--expense); }
+
+  .cicil-form { display: none; margin-top: 12px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+  .cicil-form.open { display: block; }
+  .cicil-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+
+  .cicil-row { display: flex; gap: 8px; align-items: center; }
+
+  .cicil-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 12px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+    outline: none; transition: border-color 0.2s;
+  }
+
+  .cicil-row input:focus { border-color: var(--accent); }
+
+  .btn-cicil-submit {
+    padding: 9px 16px; border-radius: 7px; border: none;
+    background: var(--accent); color: #0e0f0e;
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  .cicilan-history { margin-top: 10px; }
+  .cicilan-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .cicilan-item { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .cicilan-item:last-child { border-bottom: none; }
+  .cicilan-item .camt { color: var(--income); font-weight: 500; }
+
+  /* Export */
+  .btn-export {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 13px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-export:hover { border-color: var(--accent2); color: var(--accent2); }
+  .export-json-btn:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+  .import-json-btn:hover { border-color: var(--accent2) !important; color: var(--accent2) !important; }
+  .danger-json-btn:hover { border-color: var(--expense) !important; color: var(--expense) !important; }
+
+  .empty-state { text-align: center; padding: 44px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+  .empty-state p { font-size: 12px; }
+
+  @media (max-width: 500px) {
+    .summary { grid-template-columns: 1fr 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .form-row.three { grid-template-columns: 1fr 1fr; }
+    .tab-btn { font-size: 10px; padding: 8px 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="container">
+
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="header-label">// Manajemen Keuangan</div>
+        <h1>Catatan <span>Keuangan</span></h1>
+        <div class="date-now" id="dateNow"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;flex-wrap:wrap;flex-direction:column">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-export export-json-btn" onclick="exportJSON()" title="Simpan semua data ke file JSON">⬇ Backup JSON</button>
+          <button class="btn-export import-json-btn" onclick="document.getElementById('importFile').click()" title="Muat data dari file backup JSON">⬆ Restore JSON</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+          <button class="btn-export danger-json-btn" onclick="hapusSemuaData()" title="Hapus semua data">✕ Hapus Semua</button>
+        </div>
+        <div id="backupInfo" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tab-nav">
+    <button class="tab-btn tab-transaksi active" onclick="switchTab('transaksi', this)">📒 Transaksi</button>
+    <button class="tab-btn tab-hp" onclick="switchTab('hp', this)">🤝 Hutang & Piutang</button>
+  </div>
+
+  <!-- PAGE: TRANSAKSI -->
+  <div class="page active" id="page-transaksi">
+    <div class="summary">
+      <div class="card balance"><div class="card-label">Saldo</div><div class="card-amount" id="saldo">Rp 0</div></div>
+      <div class="card c-masuk"><div class="card-label">Pemasukan</div><div class="card-amount" id="totalMasuk">Rp 0</div></div>
+      <div class="card c-keluar"><div class="card-label">Pengeluaran</div><div class="card-amount" id="totalKeluar">Rp 0</div></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title accent">+ Catat Transaksi</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Jenis</label>
+          <div class="type-toggle">
+            <button class="type-btn active-masuk" id="btnMasuk" onclick="setType('masuk')">▲ Masuk</button>
+            <button class="type-btn" id="btnKeluar" onclick="setType('keluar')">▼ Keluar</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Kategori</label>
+          <select id="kategori">
+            <option>Usaha</option><option>Piutang</option><option>Investasi</option><option>Bonus</option><option>Lainnya</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Nominal (Rp)</label><input type="text" id="nominal" class="nominal-input" placeholder="0" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label>Tanggal</label><input type="date" id="tanggal"></div>
+      </div>
+      <div class="form-row single">
+        <div class="field"><label>Keterangan</label><textarea id="keterangan" placeholder="Tulis keterangan transaksi..."></textarea></div>
+      </div>
+      <button class="btn-submit accent-btn" onclick="tambahTransaksi()">Catat Sekarang</button>
+    </div>
+
+    <div>
+      <div class="list-header">
+        <div class="list-title">Riwayat Transaksi</div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <button class="btn-export" onclick="exportCSV()">↓ CSV</button>
+          <div class="trans-count" id="transCount">0 transaksi</div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setFilter('semua',this)">Semua</button>
+        <button class="filter-btn" onclick="setFilter('masuk',this)">Masuk</button>
+        <button class="filter-btn" onclick="setFilter('keluar',this)">Keluar</button>
+      </div>
+      <div class="trans-list" id="transList"></div>
+    </div>
+  </div>
+
+  <!-- PAGE: HUTANG PIUTANG -->
+  <div class="page" id="page-hp">
+    <div class="summary-hp">
+      <div class="card c-piutang">
+        <div class="card-label">Piutang Aktif</div>
+        <div class="card-amount" id="totalPiutang">Rp 0</div>
+        <div class="card-sub" id="subPiutang">0 catatan</div>
+      </div>
+      <div class="card c-hutang">
+        <div class="card-label">Hutang Aktif</div>
+        <div class="card-amount" id="totalHutang">Rp 0</div>
+        <div class="card-sub" id="subHutang">0 catatan</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title accent2">+ Catat Hutang / Piutang</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Jenis</label>
+          <div class="type-toggle">
+            <button class="type-btn active-piutang" id="btnPiutang" onclick="setTypeHP('piutang')">◈ Piutang</button>
+            <button class="type-btn" id="btnHutang" onclick="setTypeHP('hutang')">◉ Hutang</button>
+          </div>
+        </div>
+        <div class="field"><label>Nama</label><input type="text" id="hp-nama" placeholder="Nama orang / perusahaan"></div>
+      </div>
+      <div class="form-row three">
+        <div class="field"><label>Nominal (Rp)</label><input type="text" id="hp-nominal" class="nominal-input" placeholder="0" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label>Tanggal</label><input type="date" id="hp-tanggal"></div>
+        <div class="field"><label>Jatuh Tempo</label><input type="date" id="hp-jatuh"></div>
+      </div>
+      <div class="form-row single">
+        <div class="field"><label>Keterangan</label><textarea id="hp-keterangan" placeholder="Keterangan hutang/piutang..."></textarea></div>
+      </div>
+      <button class="btn-submit accent2-btn" onclick="tambahHP()">Catat Sekarang</button>
+    </div>
+
+    <div>
+      <div class="list-header">
+        <div class="list-title">Daftar Hutang & Piutang</div>
+        <div class="trans-count" id="hpCount">0 catatan</div>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active2 active" onclick="setFilterHP('semua',this)">Semua</button>
+        <button class="filter-btn" onclick="setFilterHP('piutang',this)">Piutang</button>
+        <button class="filter-btn" onclick="setFilterHP('hutang',this)">Hutang</button>
+        <button class="filter-btn" onclick="setFilterHP('belum',this)">Belum Lunas</button>
+        <button class="filter-btn" onclick="setFilterHP('lunas',this)">Lunas</button>
+      </div>
+      <div id="hpList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let transaksi = JSON.parse(localStorage.getItem('keuangan_data') || '[]');
+  let hutangPiutang = JSON.parse(localStorage.getItem('keuangan_hp') || '[]');
+  let tipeAktif = 'masuk';
+  let tipeHPAktif = 'piutang';
+  let filterAktif = 'semua';
+  let filterHPAktif = 'semua';
+  let hpExpanded = {};
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('tanggal').value = today;
+  document.getElementById('hp-tanggal').value = today;
+
+  updateDateNow();
+  render();
+  renderHP();
+  updateBackupInfo();
+
+  function updateDateNow() {
+    document.getElementById('dateNow').textContent =
+      new Date().toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+
+  function switchTab(tab, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    el.classList.add('active');
+  }
+
+  // ---- TRANSAKSI ----
+  function setType(tipe) {
+    tipeAktif = tipe;
+    document.getElementById('btnMasuk').className = 'type-btn' + (tipe==='masuk' ? ' active-masuk' : '');
+    document.getElementById('btnKeluar').className = 'type-btn' + (tipe==='keluar' ? ' active-keluar' : '');
+    const kat = document.getElementById('kategori');
+    kat.innerHTML = tipe === 'masuk'
+      ? `<option>Usaha</option><option>Piutang</option><option>Investasi</option><option>Bonus</option><option>Lainnya</option>`
+      : `<option>Operasional</option><option>Bahan Baku</option><option>Gaji</option><option>Peralatan</option><option>Listrik/Air</option><option>Transportasi</option><option>Lainnya</option>`;
+  }
+
+  function tambahTransaksi() {
+    const nominal = parseFloat(getRawNominal('nominal'));
+    const keterangan = document.getElementById('keterangan').value.trim();
+    const tanggal = document.getElementById('tanggal').value;
+    const kategori = document.getElementById('kategori').value;
+    if (!nominal || nominal <= 0) return alert('Nominal harus diisi!');
+    if (!keterangan) return alert('Keterangan harus diisi!');
+    if (!tanggal) return alert('Tanggal harus diisi!');
+
+    transaksi.unshift({ id: Date.now(), tipe: tipeAktif, nominal, keterangan, tanggal, kategori,
+      waktu: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) });
+    simpan();
+    render();
+
+    document.getElementById('keterangan').value = '';
+    document.getElementById('tanggal').value = today;
+  }
+
+  function hapusTrans(id) {
+    if (!confirm('Hapus transaksi ini?')) return;
+    transaksi = transaksi.filter(t => t.id !== id);
+    simpan();
+    render();
+  }
+
+  function setFilter(f, el) {
+    filterAktif = f;
+    document.querySelectorAll('#page-transaksi .filter-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    render();
+  }
+
+  function simpan() { localStorage.setItem('keuangan_data', JSON.stringify(transaksi)); }
+
+  function render() {
+    const totalMasuk = transaksi.filter(t=>t.tipe==='masuk').reduce((s,t)=>s+t.nominal,0);
+    const totalKeluar = transaksi.filter(t=>t.tipe==='keluar').reduce((s,t)=>s+t.nominal,0);
+    document.getElementById('totalMasuk').textContent = fmt(totalMasuk);
+    document.getElementById('totalKeluar').textContent = fmt(totalKeluar);
+    document.getElementById('saldo').textContent = fmt(totalMasuk - totalKeluar);
+
+    const filtered = filterAktif === 'semua' ? transaksi : transaksi.filter(t=>t.tipe===filterAktif);
+    document.getElementById('transCount').textContent = filtered.length + ' transaksi';
+
+    const list = document.getElementById('transList');
+    if (!filtered.length) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>Belum ada transaksi dicatat</p></div>`; return;
+    }
+
+    list.innerHTML = filtered.map(t => `
+      <div class="trans-item">
+        <div class="trans-icon ${t.tipe}">${t.tipe==='masuk'?'▲':'▼'}</div>
+        <div class="trans-info">
+          <div class="trans-keterangan">${esc(t.keterangan)}</div>
+          <div class="trans-meta">
+            <span class="trans-date">${fmtTgl(t.tanggal)} · ${t.waktu}</span>
+            <span class="trans-cat">${esc(t.kategori)}</span>
+          </div>
+        </div>
+        <div class="trans-amount ${t.tipe}">${t.tipe==='masuk'?'+':'-'} ${fmt(t.nominal)}</div>
+        <button class="btn-delete" onclick="hapusTrans(${t.id})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  // ---- HUTANG PIUTANG ----
+  function setTypeHP(tipe) {
+    tipeHPAktif = tipe;
+    document.getElementById('btnPiutang').className = 'type-btn' + (tipe==='piutang' ? ' active-piutang' : '');
+    document.getElementById('btnHutang').className = 'type-btn' + (tipe==='hutang' ? ' active-hutang' : '');
+  }
+
+  function tambahHP() {
+    const nominal = parseFloat(getRawNominal('hp-nominal'));
+    const nama = document.getElementById('hp-nama').value.trim();
+    const tanggal = document.getElementById('hp-tanggal').value;
+    const jatuh = document.getElementById('hp-jatuh').value;
+    const keterangan = document.getElementById('hp-keterangan').value.trim();
+    if (!nominal || nominal <= 0) return alert('Nominal harus diisi!');
+    if (!nama) return alert('Nama harus diisi!');
+    if (!tanggal) return alert('Tanggal harus diisi!');
+
+    hutangPiutang.unshift({ id: Date.now(), tipe: tipeHPAktif, nominal, nama, tanggal,
+      jatuh: jatuh || null, keterangan, status: 'belum', cicilan: [] });
+    simpanHP();
+    renderHP();
+
+    document.getElementById('hp-nama').value = '';
+    document.getElementById('hp-jatuh').value = '';
+    document.getElementById('hp-keterangan').value = '';
+    document.getElementById('hp-tanggal').value = today;
+  }
+
+  function setFilterHP(f, el) {
+    filterHPAktif = f;
+    document.querySelectorAll('#page-hp .filter-btn').forEach(b => { b.classList.remove('active'); b.classList.remove('active2'); });
+    el.classList.add('active'); el.classList.add('active2');
+    renderHP();
+  }
+
+  function toggleHP(id) { hpExpanded[id] = !hpExpanded[id]; renderHP(); }
+
+  function lunasHP(id) {
+    const item = hutangPiutang.find(h => h.id === id);
+    if (!item) return;
+    item.status = item.status === 'lunas' ? 'belum' : 'lunas';
+    simpanHP(); renderHP();
+  }
+
+  function hapusHP(id) {
+    if (!confirm('Hapus catatan ini?')) return;
+    hutangPiutang = hutangPiutang.filter(h => h.id !== id);
+    simpanHP(); renderHP();
+  }
+
+  function toggleCicilForm(id) {
+    const el = document.getElementById('cicil-form-' + id);
+    if (el) el.classList.toggle('open');
+  }
+
+  function bayarCicilan(id) {
+    const input = document.getElementById('cicil-input-' + id);
+    const val = parseFloat(input.value.replace(/\./g, '').replace(/[^\d]/g, ''));
+    if (!val || val <= 0) return alert('Masukkan nominal cicilan!');
+    const item = hutangPiutang.find(h => h.id === id);
+    if (!item) return;
+    item.cicilan.push({ nominal: val, tanggal: today });
+    const totalCicil = item.cicilan.reduce((s,c) => s + c.nominal, 0);
+    if (totalCicil >= item.nominal) item.status = 'lunas';
+    simpanHP(); input.value = '';
+    hpExpanded[id] = true;
+    renderHP();
+  }
+
+  function simpanHP() { localStorage.setItem('keuangan_hp', JSON.stringify(hutangPiutang)); }
+
+  function renderHP() {
+    let filtered = [...hutangPiutang];
+    if (filterHPAktif === 'piutang') filtered = filtered.filter(h => h.tipe === 'piutang');
+    else if (filterHPAktif === 'hutang') filtered = filtered.filter(h => h.tipe === 'hutang');
+    else if (filterHPAktif === 'belum') filtered = filtered.filter(h => h.status === 'belum');
+    else if (filterHPAktif === 'lunas') filtered = filtered.filter(h => h.status === 'lunas');
+
+    document.getElementById('hpCount').textContent = filtered.length + ' catatan';
+
+    const sisa = h => h.nominal - h.cicilan.reduce((s,c) => s + c.nominal, 0);
+    const aktifP = hutangPiutang.filter(h => h.tipe==='piutang' && h.status==='belum');
+    const aktifH = hutangPiutang.filter(h => h.tipe==='hutang' && h.status==='belum');
+    document.getElementById('totalPiutang').textContent = fmt(aktifP.reduce((s,h) => s + sisa(h), 0));
+    document.getElementById('totalHutang').textContent = fmt(aktifH.reduce((s,h) => s + sisa(h), 0));
+    document.getElementById('subPiutang').textContent = aktifP.length + ' catatan';
+    document.getElementById('subHutang').textContent = aktifH.length + ' catatan';
+
+    const list = document.getElementById('hpList');
+    if (!filtered.length) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🤝</div><p>Belum ada catatan hutang/piutang</p></div>`; return;
+    }
+
+    const todayMs = new Date().setHours(0,0,0,0);
+
+    list.innerHTML = filtered.map(h => {
+      const totalCicil = h.cicilan.reduce((s,c) => s + c.nominal, 0);
+      const sisaNom = h.nominal - totalCicil;
+      const isLunas = h.status === 'lunas';
+      const exp = hpExpanded[h.id];
+      const icon = h.tipe === 'piutang' ? '◈' : '◉';
+
+      let jatuhHtml = '';
+      if (h.jatuh) {
+        const jatuhMs = new Date(h.jatuh + 'T00:00:00').getTime();
+        const lewat = !isLunas && jatuhMs < todayMs;
+        const selisih = Math.round((jatuhMs - todayMs) / 86400000);
+        let txt = `Tempo: ${fmtTgl(h.jatuh)}`;
+        if (!isLunas) {
+          if (lewat) txt += ` (telat ${Math.abs(selisih)} hari)`;
+          else if (selisih === 0) txt += ' (hari ini)';
+          else txt += ` (${selisih} hari lagi)`;
+        }
+        jatuhHtml = `<span class="hp-jatuh ${lewat?'lewat':''}">${txt}</span>`;
+      }
+
+      const cicilanHtml = h.cicilan.length > 0 ? `
+        <div class="cicilan-history">
+          <div class="cicilan-label">Riwayat Cicilan</div>
+          ${h.cicilan.map(c => `
+            <div class="cicilan-item">
+              <span>${fmtTgl(c.tanggal)}</span>
+              <span class="camt">+ ${fmt(c.nominal)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
+      return `
+        <div class="hp-item ${isLunas ? 'lunas' : ''}">
+          <div class="hp-main" onclick="toggleHP(${h.id})">
+            <div class="hp-icon ${h.tipe}">${icon}</div>
+            <div class="hp-info">
+              <div class="hp-nama">${esc(h.nama)}</div>
+              <div class="hp-meta">
+                <span class="hp-badge ${h.tipe}">${h.tipe}</span>
+                <span class="hp-badge ${isLunas?'lunas':'belum'}">${isLunas ? '✓ Lunas' : 'Belum Lunas'}</span>
+                <span class="hp-tanggal">${fmtTgl(h.tanggal)}</span>
+                ${jatuhHtml}
+              </div>
+            </div>
+            <div class="hp-right">
+              <div class="hp-nominal ${h.tipe}">${fmt(h.nominal)}</div>
+              ${totalCicil > 0 && !isLunas ? `<div class="hp-sisa">Sisa ${fmt(sisaNom)}</div>` : ''}
+            </div>
+            <div class="hp-chevron ${exp ? 'open' : ''}">▼</div>
+          </div>
+          <div class="hp-detail ${exp ? 'open' : ''}">
+            ${h.keterangan ? `<div class="hp-keterangan">${esc(h.keterangan)}</div>` : ''}
+            ${cicilanHtml}
+            <div class="hp-actions">
+              ${!isLunas ? `<button class="btn-action cicil-btn" onclick="toggleCicilForm(${h.id})">+ Cicilan</button>` : ''}
+              <button class="btn-action lunas-btn" onclick="lunasHP(${h.id})">${isLunas ? '↩ Buka Lagi' : '✓ Tandai Lunas'}</button>
+              <button class="btn-action hapus-btn" onclick="hapusHP(${h.id})">Hapus</button>
+            </div>
+            <div class="cicil-form" id="cicil-form-${h.id}">
+              <div class="cicil-label">Bayar Cicilan</div>
+              <div class="cicil-row">
+                <input type="text" id="cicil-input-${h.id}" class="nominal-input" placeholder="Nominal (Rp)" inputmode="numeric" autocomplete="off">
+                <button class="btn-cicil-submit" onclick="bayarCicilan(${h.id})">Bayar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---- NOMINAL INPUT FORMATTING ----
+  function getRawNominal(id) {
+    return document.getElementById(id).value.replace(/\./g, '').replace(/[^\d]/g, '') || '0';
+  }
+
+  function formatNominalInput(input) {
+    const raw = input.value.replace(/\./g, '').replace(/[^\d]/g, '');
+    if (raw === '') { input.value = ''; return; }
+    const num = parseInt(raw, 10);
+    input.value = num.toLocaleString('id-ID');
+  }
+
+  // Event delegation — tangkap semua .nominal-input termasuk yang dibuat dinamis
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('nominal-input')) {
+      const pos = e.target.selectionStart;
+      const oldLen = e.target.value.length;
+      formatNominalInput(e.target);
+      // Pertahankan posisi kursor
+      const newLen = e.target.value.length;
+      e.target.setSelectionRange(pos + (newLen - oldLen), pos + (newLen - oldLen));
+    }
+  });
+
+  function exportJSON() {
+    const data = {
+      versi: '1.0',
+      exportTgl: new Date().toISOString(),
+      transaksi,
+      hutangPiutang
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const tgl = new Date().toISOString().split('T')[0];
+    a.href = url; a.download = `backup-keuangan-${tgl}.json`; a.click();
+    URL.revokeObjectURL(url);
+    // Simpan waktu backup terakhir
+    const now = new Date().toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    localStorage.setItem('keuangan_lastbackup', now);
+    updateBackupInfo();
+  }
+
+  function hapusSemuaData() {
+    if (!confirm('⚠️ HAPUS SEMUA DATA?\n\nSeluruh transaksi dan catatan hutang/piutang akan dihapus permanen.\n\nSarankan backup dulu sebelum menghapus!\n\nLanjutkan?')) return;
+    transaksi = []; hutangPiutang = [];
+    localStorage.removeItem('keuangan_data');
+    localStorage.removeItem('keuangan_hp');
+    render(); renderHP();
+    alert('Semua data telah dihapus.');
+  }
+
+  function updateBackupInfo() {
+    const last = localStorage.getItem('keuangan_lastbackup');
+    const el = document.getElementById('backupInfo');
+    if (!el) return;
+    if (last) {
+      el.textContent = `Backup terakhir: ${last}`;
+    } else {
+      el.textContent = 'Belum pernah backup — simpan file JSON untuk pindah device';
+    }
+  }
+
+  function importJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.transaksi && !data.hutangPiutang) {
+          alert('File tidak valid! Pastikan file backup yang benar.'); return;
+        }
+        const jmlT = data.transaksi?.length || 0;
+        const jmlHP = data.hutangPiutang?.length || 0;
+        if (!confirm(`File berisi ${jmlT} transaksi dan ${jmlHP} catatan hutang/piutang.\n\nData yang ada sekarang akan DIGANTI. Lanjutkan?`)) {
+          event.target.value = ''; return;
+        }
+        transaksi = data.transaksi || [];
+        hutangPiutang = data.hutangPiutang || [];
+        localStorage.setItem('keuangan_data', JSON.stringify(transaksi));
+        localStorage.setItem('keuangan_hp', JSON.stringify(hutangPiutang));
+        render(); renderHP();
+        alert(`✓ Data berhasil dipulihkan!\n${jmlT} transaksi & ${jmlHP} hutang/piutang dimuat.`);
+      } catch(err) {
+        alert('Gagal membaca file. Pastikan file JSON yang valid.');
+      }
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  // ---- UTILS ----
+  function fmt(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
+  function fmtTgl(d) { return new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }); }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function exportCSV() {
+    if (!transaksi.length) return alert('Belum ada data transaksi.');
+    const rows = transaksi.map(t => `${t.tanggal},${t.tipe},${t.kategori},"${t.keterangan}",${t.nominal}`);
+    const csv = ['Tanggal,Jenis,Kategori,Keterangan,Nominal', ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'transaksi.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---- SERVICE WORKER (untuk PWA offline) ----
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+      const CACHE = 'keuangan-v1';
+      self.addEventListener('install', e => {
+        e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
+        self.skipWaiting();
+      });
+      self.addEventListener('activate', e => {
+        e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+        self.clients.claim();
+      });
+      self.addEventListener('fetch', e => {
+        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+      });
+    `;
+    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl).catch(() => {});
+  }
+</script>
+</body>
+</html>
